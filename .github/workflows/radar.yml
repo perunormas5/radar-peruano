@@ -1,6 +1,7 @@
 name: Radar El Peruano
 on:
   schedule:
+    # 11 AM a 11 PM Perú es 16:00 a 04:00 UTC
     - cron: '*/20 16-23 * * *'
     - cron: '*/20 0-4 * * *'
   workflow_dispatch: 
@@ -8,16 +9,16 @@ on:
 jobs:
   run_radar:
     runs-on: ubuntu-latest
-    permissions: # Esto refuerza los permisos de escritura
+    permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4 # Actualizado
+      - uses: actions/checkout@v4
       - name: Setup Python
-        uses: actions/setup-python@v5 # Actualizado
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       - name: Instalar dependencias
-        run: pip install requests beautifulsoup4
+        run: pip install requests beautifulsoup4 pytz
       - name: Ejecutar Script
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
@@ -28,5 +29,5 @@ jobs:
           git config --global user.name 'github-actions'
           git config --global user.email 'action@github.com'
           git add ultima_norma.txt || true
-          git commit -m "Actualizar ultima norma" || exit 0
+          git commit -m "Actualizar memoria de normas" || exit 0
           git push
