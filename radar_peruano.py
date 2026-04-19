@@ -8,11 +8,15 @@ URL_PERUANO = "https://diariooficial.elperuano.pe/normas"
 
 def obtener_normas():
     try:
-        response = requests.get(URL_PERUANO, timeout=15)
+        # Añadimos un "User-Agent" para que la web no nos bloquee
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        response = requests.get(URL_PERUANO, headers=headers, timeout=15)
         soup = BeautifulSoup(response.text, 'html.parser')
-        # Buscamos los títulos de las normas (ajustado a la estructura común del diario)
-        items = soup.find_all('h4', class_='title') 
-        normas = [item.text.strip() for item in items[:10]]
+        
+        # El Peruano suele usar la clase 'title' o 'busqueda_v_titulo'
+        items = soup.find_all(['h4', 'span'], class_=['title', 'busqueda_v_titulo'])
+        
+        normas = [item.text.strip() for item in items if item.text.strip()]
         return normas
     except Exception as e:
         print(f"Error al scrapear: {e}")
@@ -20,31 +24,34 @@ def obtener_normas():
 
 def ejecutar_radar():
     normas_hoy = obtener_normas()
+    
+    # Si no encuentra nada, mandamos un aviso de error para saber qué pasa
     if not normas_hoy:
+        print("No se encontraron normas en la página.")
         return
 
-    # Memoria: leemos la última norma avisada
     archivo_db = "ultima_norma.txt"
     ultima_norma_guardada = ""
     if os.path.exists(archivo_db):
         with open(archivo_db, "r", encoding="utf-8") as f:
             ultima_norma_guardada = f.read().strip()
 
-    # Si la más reciente es distinta a la guardada, hay novedades
-    nueva_norma = normas_hoy[0]
-    if nueva_norma != ultima_norma_guardada:
-        mensaje = "🔔 *NUEVAS NORMAS ENCONTRADAS:*\n\n"
-        for i, n in enumerate(normas_hoy[:5], 1): # Enviamos las 5 primeras
+    # Si la primera norma es distinta, avisamos
+    if normas_hoy[0] != ultima_norma_guardada:
+        mensaje = "🔔 *RADAR EL PERUANO ACTIVADO*\n\n"
+        mensaje += "Últimas normas detectadas:\n"
+        for i, n in enumerate(normas_hoy[:5], 1):
             mensaje += f"{i}. {n}\n"
-        mensaje += f"\n🔗 [Ver en El Peruano]({URL_PERUANO})"
+        mensaje += f"\n🔗 [Ver Normas]({URL_PERUANO})"
         
-        # Enviar a Telegram
         url_tg = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-        requests.post(url_tg, json={"chat_id": CHAT_ID, "text": mensaje, "parse_mode": "Markdown"})
+        r = requests.post(url_tg, json={"chat_id": CHAT_ID, "text": mensaje, "parse_mode": "Markdown"})
         
-        # Actualizar memoria
-        with open(archivo_db, "w", encoding="utf-8") as f:
-            f.write(nueva_norma)
+        if r.status_code == 200:
+            with open(archivo_db, "w", encoding="utf-8") as f:
+                f.write(normas_hoy[0])
+        else:
+            print(f"Error enviando a Telegram: {r.text}")
 
 if __name__ == "__main__":
     ejecutar_radar()
