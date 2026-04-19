@@ -1,0 +1,31 @@
+name: Radar El Peruano
+on:
+  schedule:
+    # 11 AM a 11 PM Perú es 16:00 a 04:00 UTC
+    - cron: '*/20 16-23 * * *'
+    - cron: '*/20 0-4 * * *'
+  workflow_dispatch: # Permite ejecutarlo manualmente para probar
+
+jobs:
+  run_radar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Instalar dependencias
+        run: pip install requests beautifulsoup4
+      - name: Ejecutar Script
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python radar_peruano.py
+      - name: Guardar Memoria
+        run: |
+          git config --global user.name 'github-actions'
+          git config --global user.email 'action@github.com'
+          git add ultima_norma.txt
+          git commit -m "Actualizar última norma" || exit 0
+          git push
